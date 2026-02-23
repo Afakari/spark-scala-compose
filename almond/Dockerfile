@@ -6,7 +6,7 @@
 # Can be used to create an image with a locally built almond that isn't on maven central yet.
 ARG LOCAL_IVY=no
 
-FROM jupyter/base-notebook as coursier_base
+FROM jupyter/base-notebook:hub-4.0.2 AS coursier_base
 
 USER root
 RUN printf "deb http://mirror.arvancloud.ir/ubuntu jammy main universe restricted\n\
@@ -15,6 +15,7 @@ RUN printf "deb http://mirror.arvancloud.ir/ubuntu jammy main universe restricte
     apt-get -y update && \
     apt-get install --no-install-recommends -y \
       curl \
+      jq \
       openjdk-17-jre-headless \
       ca-certificates-java && \
     apt-get clean && \
@@ -28,16 +29,16 @@ USER $NB_UID
 # ensure the JAR of the CLI is in the coursier cache, in the image
 RUN /usr/local/bin/coursier --help
 
-FROM coursier_base as local_ivy_yes
+FROM coursier_base AS local_ivy_yes
 USER $NB_UID
 ONBUILD RUN mkdir -p .ivy2/local/
 ONBUILD COPY --chown=1000:100 ivy-local/ .ivy2/local/
 
-FROM coursier_base as local_ivy_no
+FROM coursier_base AS local_ivy_no
 
 FROM local_ivy_${LOCAL_IVY}
 ARG ALMOND_VERSION=0.14.5
-ARG SCALA_VERSIONS=2.12.21
+ARG SCALA_VERSIONS="2.12.21"
 # Set to a single Scala version string or list of Scala versions separated by a space.
 # i.e SCALA_VERSIONS="2.12.19 2.13.11"
 
@@ -46,4 +47,6 @@ USER $NB_UID
 COPY --chmod=777 install-kernels.sh .
 RUN ./install-kernels.sh && \
     rm install-kernels.sh && \
-    rm -rf .ivy2
+    rm -rf .ivy2  && \
+    pip install --upgrade jupyterlab-vim && \
+    pip install catppuccin-jupyterlab
